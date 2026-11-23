@@ -30,7 +30,7 @@ Abra http://localhost:8080. Com `js/config.js` vazio, o app abre em modo demonst
 ## Supabase (já ligado)
 
 Projeto na organização gratuita **PORTARIA CRISTAL**:
-`https://lavdmqnagigrwgcpoape.supabase.co` (região us-east-1). O esquema (migrações 0001 e 0002)
+`https://lavdmqnagigrwgcpoape.supabase.co` (região us-east-1). O esquema (migrações 0001, 0002 e 0003)
 já está aplicado, com segurança por linha (RLS) e a checagem de segurança do Supabase sem alertas.
 `js/config.js` já aponta para ele com a chave pública (anon).
 
@@ -74,3 +74,11 @@ Publique a pasta inteira. No tablet da portaria, abra o endereço no Chrome e us
 - Aviso automático por WhatsApp (API oficial) e leitura da etiqueta por IA (Opções 1 e 2 da proposta).
 - Leitura do QR pela câmera do tablet.
 - Aviso por e-mail ou push como alternativa gratuita ao WhatsApp.
+
+## Blocos, várias encomendas e controle de aviso
+
+- Cada apartamento é identificado por **bloco + número** (ex.: A1-13). Os blocos ficam em Ajustes (síndico), separados por vírgula.
+- Importação de moradores: `nome;bloco;apto;telefone`, uma linha por morador.
+- Cada volume tem o seu próprio código (e etiqueta). No registro, o campo "Volumes" cria vários de uma vez.
+- Em Pendentes, as encomendas aparecem agrupadas por apartamento. O aviso do WhatsApp lista todos os códigos numa só mensagem, e "Entregar todas" permite marcar quais estão sendo retiradas.
+- Aviso: o sistema não consegue saber se o WhatsApp foi mesmo enviado. Depois de abrir o WhatsApp, o porteiro confirma "Sim, enviei" e fica registrado quando, por quem e por qual canal (WhatsApp, interfone, pessoalmente...).
