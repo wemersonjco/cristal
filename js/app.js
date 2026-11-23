@@ -147,7 +147,7 @@ function renderChrome() {
     ? '<span>' + esc(P.nome || P.email) + ' · ' + (P.papel === 'sindico' ? 'síndico' : 'porteiro') + '</span><button type="button" class="btn small" data-act="logout">Sair</button>'
     : '<span class="pill warn">Demonstração</span>';
   const today = new Date().toISOString();
-  const chegaram = S.pkgs.filter((p) => sameDay(p.at, today)).length;
+  const chegaram = S.pkgs.filter((p) => p.status !== 'cancelada' && sameDay(p.at, today)).length;
   const entreg = S.pkgs.filter((p) => p.status === 'entregue' && p.outAt && sameDay(p.outAt, today)).length;
   const semAviso = pend.filter((p) => !p.avisadoEm).length;
   const oldest = pend.length ? Math.floor(Math.max(...pend.map((p) => ageH(p.at))) / 24) : 0;
@@ -320,7 +320,9 @@ function rowHTML(p) {
     (p.track ? '<span>Rastreio ' + esc(p.track) + '</span>' : '') + (p.obs ? '<span>' + esc(p.obs) + '</span>' : '') + '</div></div>' +
     '<div class="prow-aviso">' + avisoPill(p) + '</div>' +
     '<div class="actions"><button type="button" class="btn primary small" data-act="deliver" data-id="' + p.id + '">Entregar</button>' +
-    '<button type="button" class="btn small" data-act="label" data-ids="' + p.id + '">Etiqueta</button></div></div>';
+    '<button type="button" class="btn small" data-act="label" data-ids="' + p.id + '">Etiqueta</button>' +
+    '<button type="button" class="btn small" data-act="editpkg" data-id="' + p.id + '">Editar</button>' +
+    '<button type="button" class="btn small danger" data-act="cancelpkg" data-id="' + p.id + '">Cancelar</button></div></div>';
 }
 function grpCard(g) {
   const cls = ageClass(g.pkgs[0]);
@@ -356,19 +358,21 @@ function drawPend() {
 }
 
 /* ---------------- HISTÓRICO ---------------- */
-const HF = { q: '', st: 'todas' };
+const HF = { q: '', st: 'todas', confirm: null };
 function pkgCard(p) {
-  const cls = p.status === 'entregue' ? 'done' : ageClass(p);
-  const pill = p.status === 'entregue' ? '<span class="pill ok">Entregue após ' + waitLabel(p.at, p.outAt) + '</span>' : '<span class="pill' + (cls ? ' ' + cls : '') + '">há ' + waitLabel(p.at) + '</span>';
+  const canc = p.status === 'cancelada';
+  const cls = canc ? '' : p.status === 'entregue' ? 'done' : ageClass(p);
+  const pill = canc ? '<span class="pill bad">Cancelada</span>' : p.status === 'entregue' ? '<span class="pill ok">Entregue após ' + waitLabel(p.at, p.outAt) + '</span>' : '<span class="pill' + (cls ? ' ' + cls : '') + '">há ' + waitLabel(p.at) + '</span>';
   return '<article class="pkg ' + cls + '"><span class="unit">' + esc(apLabel(p)) + '</span><div><div class="who">' + esc(p.nome || 'Apto sem cadastro') + ' <span class="code">' + esc(p.code) + '</span> ' + pill + '</div>' +
     '<div class="meta"><span>' + esc(p.carrier) + ' · ' + esc(p.tipo) + '</span><span>Prateleira ' + esc(p.shelf) + '</span><span>Chegou ' + fmtDT(p.at) + '</span>' +
     (p.track ? '<span>Rastreio ' + esc(p.track) + '</span>' : '') + (p.obs ? '<span>' + esc(p.obs) + '</span>' : '') +
-    (p.status === 'entregue' ? '<span>Retirada ' + fmtDT(p.outAt) + ' por ' + esc(p.outBy || '') + '</span>' : '') + '<span>' + avisoPill(p) + '</span></div></div>' +
-    '<div class="actions">' + (p.status === 'entregue' ? '<button type="button" class="btn small" data-act="undo" data-id="' + p.id + '">Desfazer entrega</button>' : '') + '</div></article>';
+    (p.status === 'entregue' ? '<span>Retirada ' + fmtDT(p.outAt) + ' por ' + esc(p.outBy || '') + '</span>' : '') + (canc ? '<span>Cancelada ' + fmtDT(p.cancelEm) + ' por ' + esc(p.cancelPor || '') + (p.cancelMotivo ? ' · ' + esc(p.cancelMotivo) : '') + '</span>' : '<span>' + avisoPill(p) + '</span>') + '</div></div>' +
+    '<div class="actions">' + (p.status === 'entregue' ? '<button type="button" class="btn small" data-act="undo" data-id="' + p.id + '">Desfazer entrega</button>' : '') +
+    (isSindico() ? '<button type="button" class="btn small danger" data-act="delpkg" data-id="' + p.id + '">' + (HF.confirm === p.id ? 'Confirmar exclusão' : 'Excluir') + '</button>' : '') + '</div></article>';
 }
 function viewHistorico() {
   $('#view').innerHTML = '<section class="panel"><h2>Histórico</h2><div class="row"><div style="flex:2 1 260px"><label for="hq">Buscar</label><input id="hq" type="search" autocomplete="off" value="' + esc(HF.q) + '" placeholder="Nome, bloco, apto, código ou rastreio"></div>' +
-    '<div><label for="hs">Situação</label><select id="hs">' + [['todas', 'Todas'], ['entregue', 'Entregues'], ['pendente', 'Pendentes']].map((o) => '<option value="' + o[0] + '"' + (HF.st === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div></div>' +
+    '<div><label for="hs">Situação</label><select id="hs">' + [['todas', 'Todas'], ['entregue', 'Entregues'], ['pendente', 'Pendentes'], ['cancelada', 'Canceladas']].map((o) => '<option value="' + o[0] + '"' + (HF.st === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div></div>' +
     '<p class="hint">Mostra os últimos 90 dias.</p></section><div id="hlist" class="list"></div>';
   drawHist();
 }
@@ -419,7 +423,7 @@ function bars(map, color) {
 }
 function viewRelatorio() {
   const since = Date.now() - 30 * 864e5;
-  const rec = S.pkgs.filter((p) => new Date(p.at).getTime() >= since);
+  const rec = S.pkgs.filter((p) => p.status !== 'cancelada' && new Date(p.at).getTime() >= since);
   const ent = S.pkgs.filter((p) => p.status === 'entregue' && p.outAt && new Date(p.outAt).getTime() >= since);
   const avg = ent.length ? ent.reduce((a, p) => a + (new Date(p.outAt) - new Date(p.at)) / 36e5, 0) / ent.length : 0;
   const avgTxt = !ent.length ? '—' : avg < 24 ? avg.toFixed(1).replace('.', ',') + ' h' : (avg / 24).toFixed(1).replace('.', ',') + ' dias';
@@ -558,6 +562,76 @@ async function confirmDeliver(btn) {
   render();
 }
 
+
+/* ---------------- editar / cancelar / excluir encomenda ---------------- */
+function openEdit(id) {
+  const p = byId(id); if (!p || p.status !== 'pendente') return;
+  const blocos = S.cfg.blocos.indexOf(p.bloco) > -1 || !p.bloco ? S.cfg.blocos : S.cfg.blocos.concat([p.bloco]);
+  const opts = '<option value="">Bloco</option>' + blocos.map((b) => '<option value="' + esc(b) + '"' + (b === p.bloco ? ' selected' : '') + '>' + esc(b) + '</option>').join('');
+  $('#overlay').innerHTML = '<div class="overlay" data-act="closeov"><div class="modal" role="dialog" aria-modal="true" aria-label="Editar encomenda" data-id="' + esc(p.id) + '">' +
+    '<h2 style="font-size:20px;margin-bottom:4px">Editar encomenda <span class="code">' + esc(p.code) + '</span></h2>' +
+    '<p class="hint" style="margin-top:0">O código de retirada não muda, então a etiqueta já impressa continua valendo.</p>' +
+    '<label for="eq">Trocar o morador (busque por nome ou apto)</label><input id="eq" type="search" autocomplete="off" placeholder="Ex.: A2 21 ou nome">' +
+    '<div id="ematches" class="matches"></div>' +
+    '<div class="row"><div style="flex:0 1 120px"><label for="eb">Bloco</label><select id="eb">' + opts + '</select></div>' +
+    '<div style="flex:0 1 120px"><label for="eu">Apto</label><input id="eu" type="text" value="' + esc(p.unit) + '"></div>' +
+    '<div><label for="en">Nome</label><input id="en" type="text" value="' + esc(p.nome) + '"></div>' +
+    '<div><label for="et">Telefone</label><input id="et" type="tel" value="' + esc(p.tel) + '"></div></div>' +
+    '<label>Transportadora</label>' + chipGroup('ecarrier', CARRIERS, p.carrier) + '<label>Tipo</label>' + chipGroup('etipo', TIPOS, p.tipo) + '<label>Prateleira</label>' + chipGroup('eshelf', SHELVES, p.shelf) +
+    '<div class="row"><div><label for="etrack">Rastreio</label><input id="etrack" type="text" value="' + esc(p.track) + '"></div><div><label for="eobs">Observação</label><input id="eobs" type="text" value="' + esc(p.obs) + '"></div></div>' +
+    '<div class="row" style="margin-top:14px"><span style="flex:1 1 0"></span><button type="button" class="btn" data-act="closeov" style="flex:0 0 auto">Cancelar</button><button type="button" class="btn primary" data-act="saveedit" style="flex:0 0 auto">Salvar alterações</button></div></div></div>';
+}
+let editResId = undefined;
+function drawEditMatches() {
+  const box = $('#ematches'); if (!box) return;
+  const t = tokens(($('#eq') || {}).value);
+  if (!t.length) { box.innerHTML = ''; return; }
+  const list = S.res.filter((r) => { const h = hayRes(r); return t.every((x) => h.indexOf(x) > -1); }).sort(cmpAp).slice(0, 5);
+  box.innerHTML = list.map((r) => '<button type="button" class="match" data-act="epick" data-id="' + r.id + '"><span class="unit">' + esc(apLabel(r)) + '</span><span><b>' + esc(r.nome) + '</b></span></button>').join('') || '<p class="hint">Ninguém encontrado. Você pode digitar bloco, apto e nome abaixo.</p>';
+}
+async function saveEdit(btn) {
+  const m = $('#overlay .modal'); if (!m) return;
+  const p = byId(m.getAttribute('data-id')); if (!p) return;
+  const v = (i) => $(i).value.trim(), g = (n) => { const e = m.querySelector('input[name="' + n + '"]:checked'); return e ? e.value : ''; };
+  const bloco = v('#eb'), unit = v('#eu');
+  if (!bloco || !unit) { toast('Informe o bloco e o apartamento.'); return; }
+  const fields = {
+    resId: editResId !== undefined ? editResId : p.resId, bloco, unit, nome: v('#en'), tel: v('#et'),
+    carrier: g('ecarrier') || p.carrier, tipo: g('etipo') || p.tipo, shelf: g('eshelf') || p.shelf, track: v('#etrack'), obs: v('#eobs'),
+  };
+  const aptoMudou = apKey(fields) !== apKey(p);
+  if (aptoMudou && editResId === undefined) fields.resId = null;
+  const telMudou = digits(fields.tel) !== digits(p.tel);
+  const resetAviso = !!p.avisadoEm && (aptoMudou || telMudou);
+  if (await run(async () => { await backend.updatePkg(p.id, { fields, resetAviso }); return true; }, btn)) {
+    Object.assign(p, fields);
+    if (resetAviso) { p.notified = 0; p.avisadoEm = undefined; p.avisadoPor = undefined; p.avisoCanal = undefined; }
+    editResId = undefined;
+    $('#overlay').innerHTML = '';
+    toast('Encomenda corrigida' + (resetAviso ? '. Como o destinatário mudou, o aviso foi zerado.' : ''));
+    render();
+  }
+}
+function openCancel(id) {
+  const p = byId(id); if (!p || p.status !== 'pendente') return;
+  $('#overlay').innerHTML = '<div class="overlay" data-act="closeov"><div class="modal" role="dialog" aria-modal="true" aria-label="Cancelar registro" data-id="' + esc(p.id) + '">' +
+    '<h2 style="font-size:20px;margin-bottom:4px">Cancelar o registro ' + esc(p.code) + '?</h2>' +
+    '<p style="margin:0">' + esc(apLabel(p)) + ' · ' + esc(p.nome || 'sem cadastro') + ' · ' + esc(p.carrier) + '. A encomenda sai de Pendentes e fica no Histórico como cancelada.</p>' +
+    '<label>Motivo</label><div class="chips">' + ['Apartamento errado', 'Registrada em duplicidade', 'Volume a mais', 'Outro'].map((c, i) => '<label><input type="radio" name="motivo" value="' + c + '"' + (i === 0 ? ' checked' : '') + '><span>' + c + '</span></label>').join('') + '</div>' +
+    '<div class="row" style="margin-top:14px"><span style="flex:1 1 0"></span><button type="button" class="btn" data-act="closeov" style="flex:0 0 auto">Voltar</button><button type="button" class="btn danger" data-act="confirmcancel" style="flex:0 0 auto">Cancelar registro</button></div></div></div>';
+}
+async function confirmCancel(btn) {
+  const m = $('#overlay .modal'); if (!m) return;
+  const p = byId(m.getAttribute('data-id')); if (!p) return;
+  const c = m.querySelector('input[name=motivo]:checked'), motivo = c ? c.value : '', por = whoName();
+  if (await run(async () => { await backend.cancelPkg(p.id, { por, motivo }); return true; }, btn)) {
+    p.status = 'cancelada'; p.cancelEm = new Date().toISOString(); p.cancelPor = por; p.cancelMotivo = motivo;
+    $('#overlay').innerHTML = '';
+    toast('Registro cancelado');
+    render();
+  } else softRefresh();
+}
+
 /* ---------------- render e eventos ---------------- */
 function render() {
   renderChrome();
@@ -587,6 +661,16 @@ document.addEventListener('click', async (e) => {
   if (a === 'copymsg') { const pk = idsOf(el).map(byId).filter(Boolean); if (pk.length) copy(msgGroup(pk, pk.every((p) => p.avisadoEm)), 'Mensagem copiada'); return; }
   if (a === 'label') { openLabel(idsOf(el)); return; }
   if (a === 'printlabel') { try { window.print(); } catch (x) { toast('Não foi possível abrir a impressão.'); } return; }
+  if (a === 'editpkg') { editResId = undefined; openEdit(id); return; }
+  if (a === 'epick') { const r = S.res.find((x) => x.id === id); if (r) { editResId = r.id; $('#eb').value = r.bloco; $('#eu').value = r.unit; $('#en').value = r.nome; $('#et').value = r.tel || ''; $('#eq').value = ''; $('#ematches').innerHTML = ''; } return; }
+  if (a === 'saveedit') { saveEdit(el); return; }
+  if (a === 'cancelpkg') { openCancel(id); return; }
+  if (a === 'confirmcancel') { confirmCancel(el); return; }
+  if (a === 'delpkg') {
+    if (HF.confirm === id) { if (await run(async () => { await backend.deletePkg(id); return true; })) { HF.confirm = null; S.pkgs = S.pkgs.filter((x) => x.id !== id); toast('Registro excluído'); render(); } }
+    else { HF.confirm = id; drawHist(); }
+    return;
+  }
   if (a === 'deliver') { openDeliver([id]); return; }
   if (a === 'deliverall') { openDeliver(pending().filter((p) => apKey(p) === el.getAttribute('data-key')).sort((x, y) => new Date(x.at) - new Date(y.at)).map((p) => p.id)); return; }
   if (a === 'sigclear') { const c = $('#sig'); if (c) { c.getContext('2d').clearRect(0, 0, c.width, c.height); drawn = false; } return; }
@@ -625,6 +709,7 @@ document.addEventListener('input', (e) => {
   const t = e.target;
   if (t.id === 'q') { R.q = t.value; drawMatches(); }
   else if (t.id === 'vol') drawTracks();
+  else if (t.id === 'eq') drawEditMatches();
   else if (t.id === 'pq') { PF.q = t.value; drawPend(); }
   else if (t.id === 'hq') { HF.q = t.value; drawHist(); }
   else if (t.id === 'mq') { MF.q = t.value; MF.confirm = null; drawMor(); }

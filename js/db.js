@@ -131,6 +131,23 @@ const local = (() => {
       if (!n) throw new Error('Estas encomendas já foram entregues.');
       return n;
     },
+    async updatePkg(id, patch) {
+      const p = find(id);
+      if (!p) throw new Error('Encomenda não encontrada.');
+      Object.assign(p, patch.fields);
+      if (patch.resetAviso) { p.notified = 0; delete p.avisadoEm; delete p.avisadoPor; delete p.avisoCanal; }
+      write();
+    },
+    async cancelPkg(id, { por, motivo }) {
+      const p = find(id);
+      if (!p || p.status !== 'pendente') throw new Error('Só dá para cancelar encomendas pendentes.');
+      p.status = 'cancelada'; p.cancelEm = new Date().toISOString(); p.cancelPor = por; p.cancelMotivo = motivo || '';
+      write();
+    },
+    async deletePkg(id) {
+      st.pkgs = st.pkgs.filter((x) => x.id !== id);
+      write();
+    },
     async undo(id) {
       const p = find(id);
       if (!p) return;
@@ -195,13 +212,14 @@ const local = (() => {
 /* ------------------------------------------------------------------ */
 /* Backend Supabase                                                    */
 /* ------------------------------------------------------------------ */
-const COLS = 'id,codigo,morador_id,bloco,unidade,nome,telefone,transportadora,tipo,rastreio,prateleira,obs,status,avisos,chegou_em,retirada_em,retirado_por,avisado_em,avisado_por,aviso_canal';
+const COLS = 'id,codigo,morador_id,bloco,unidade,nome,telefone,transportadora,tipo,rastreio,prateleira,obs,status,avisos,chegou_em,retirada_em,retirado_por,avisado_em,avisado_por,aviso_canal,cancelado_em,cancelado_por,cancelado_motivo';
 const toPkg = (r) => ({
   id: r.id, code: r.codigo, resId: r.morador_id, bloco: r.bloco || '', unit: r.unidade, nome: r.nome || '', tel: r.telefone || '',
   carrier: r.transportadora || 'Outros', tipo: r.tipo || 'Caixa', track: r.rastreio || '', shelf: r.prateleira || '',
   obs: r.obs || '', at: r.chegou_em, notified: r.avisos || 0, status: r.status,
   outAt: r.retirada_em || undefined, outBy: r.retirado_por || undefined,
   avisadoEm: r.avisado_em || undefined, avisadoPor: r.avisado_por || undefined, avisoCanal: r.aviso_canal || undefined,
+  cancelEm: r.cancelado_em || undefined, cancelPor: r.cancelado_por || undefined, cancelMotivo: r.cancelado_motivo || undefined,
 });
 const toRes = (r) => ({ id: r.id, nome: r.nome, bloco: r.bloco || '', unit: r.unidade, tel: r.telefone || '' });
 const fail = (e) => {
@@ -274,6 +292,28 @@ const remote = (() => {
       fail(error);
       if (!data || !data.length) throw new Error('Estas encomendas já foram entregues em outro aparelho.');
       return data.length;
+    },
+    async updatePkg(id, patch) {
+      const f = patch.fields, row = {
+        morador_id: f.resId || null, bloco: f.bloco || '', unidade: f.unit, nome: f.nome || null, telefone: f.tel || null,
+        transportadora: f.carrier, tipo: f.tipo, rastreio: f.track || null, prateleira: f.shelf, obs: f.obs || null,
+      };
+      if (patch.resetAviso) Object.assign(row, { avisos: 0, avisado_em: null, avisado_por: null, aviso_canal: null });
+      const { data, error } = await sb.from('encomendas').update(row).eq('id', id).eq('status', 'pendente').select('id');
+      fail(error);
+      if (!data || !data.length) throw new Error('Esta encomenda não está mais pendente.');
+    },
+    async cancelPkg(id, { por, motivo }) {
+      const { data, error } = await sb.from('encomendas')
+        .update({ status: 'cancelada', cancelado_em: new Date().toISOString(), cancelado_por: por, cancelado_motivo: motivo || null })
+        .eq('id', id).eq('status', 'pendente').select('id');
+      fail(error);
+      if (!data || !data.length) throw new Error('Esta encomenda não está mais pendente.');
+    },
+    async deletePkg(id) {
+      const { data, error } = await sb.from('encomendas').delete().eq('id', id).select('id');
+      fail(error);
+      if (!data || !data.length) throw new Error('Não foi possível excluir. Só o síndico pode excluir.');
     },
     async undo(id) {
       const { error } = await sb.from('encomendas').update({ status: 'pendente', retirada_em: null, retirado_por: null, assinatura: null }).eq('id', id);

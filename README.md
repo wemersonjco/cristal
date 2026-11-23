@@ -82,3 +82,9 @@ Publique a pasta inteira. No tablet da portaria, abra o endereço no Chrome e us
 - Cada volume tem o seu próprio código (e etiqueta). No registro, o campo "Volumes" cria vários de uma vez.
 - Em Pendentes, as encomendas aparecem agrupadas por apartamento. O aviso do WhatsApp lista todos os códigos numa só mensagem, e "Entregar todas" permite marcar quais estão sendo retiradas.
 - Aviso: o sistema não consegue saber se o WhatsApp foi mesmo enviado. Depois de abrir o WhatsApp, o porteiro confirma "Sim, enviei" e fica registrado quando, por quem e por qual canal (WhatsApp, interfone, pessoalmente...).
+
+## Corrigir registros errados
+
+- **Editar** (pendentes): troca morador/apto, transportadora, tipo, prateleira, rastreio e observação. O código de retirada não muda. Se o destinatário mudar, o aviso é zerado.
+- **Cancelar**: tira de Pendentes e mantém no Histórico como "Cancelada", com motivo, data e quem cancelou (migração 0004).
+- **Excluir** (só síndico, no Histórico): apaga o registro de vez.
