@@ -154,3 +154,4 @@ input[type=email],input[type=password]{width:100%;padding:11px 12px;border:1px s
 .chk{display:flex;gap:10px;align-items:center;font-weight:500;margin:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
 .chk input{width:20px;height:20px}
 @media (max-width:700px){.prow{grid-template-columns:1fr}}
+input[type=number]{width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}

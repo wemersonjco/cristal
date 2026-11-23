@@ -25,7 +25,7 @@ const cmpAp = (a, b) => String(a.bloco || '').localeCompare(String(b.bloco || ''
 const ageH = (iso) => (Date.now() - new Date(iso).getTime()) / 36e5;
 function waitLabel(iso, end) {
   const h = ((end ? new Date(end).getTime() : Date.now()) - new Date(iso).getTime()) / 36e5;
-  if (h < 1) return 'agora há pouco';
+  if (h < 1) return 'menos de 1 h';
   if (h < 24) return Math.floor(h) + ' h';
   const d = Math.floor(h / 24);
   return d + (d === 1 ? ' dia' : ' dias');

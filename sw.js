@@ -1,6 +1,6 @@
 // Guarda a casca do app para abrir rápido e continuar abrindo se a internet cair.
 // Os dados das encomendas sempre vêm do banco (nunca ficam em cache).
-const CACHE = 'portaria-shell-v1';
+const CACHE = 'portaria-shell-v2';
 const SHELL = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/db.js', 'js/config.js', 'manifest.json', 'icons/icon.svg'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
