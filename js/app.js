@@ -256,10 +256,19 @@ function drawForm() {
     '<label>Tipo</label>' + chipGroup('tipo', TIPOS, R.tipo) +
     '<label>Prateleira</label>' + chipGroup('shelf', SHELVES, R.shelf) +
     '<div class="row"><div style="flex:0 1 160px"><label for="vol">Volumes</label><input id="vol" type="number" min="1" max="9" value="1" inputmode="numeric"></div>' +
-    '<div><label for="track">Código de rastreio (opcional)</label><input id="track" type="text"></div>' +
     '<div><label for="obs">Observação (opcional)</label><input id="obs" type="text" placeholder="Ex.: caixa amassada"></div></div>' +
-    '<p class="hint" style="margin-top:6px">Mais de um volume no mesmo pedido? Informe a quantidade: cada volume ganha o seu código e a sua etiqueta.</p>' +
+    '<div id="trackbox"></div>' +
+    '<p class="hint" style="margin-top:6px">Mais de uma encomenda? Informe a quantidade: cada uma ganha o seu código de retirada, a sua etiqueta e o seu código de rastreio.</p>' +
     '<div style="margin-top:16px"><button type="submit" class="btn primary" style="min-width:220px">Registrar encomenda</button></div></form>';
+  drawTracks();
+}
+function drawTracks() {
+  const box = $('#trackbox'); if (!box) return;
+  const n = Math.min(9, Math.max(1, parseInt(($('#vol') || {}).value, 10) || 1));
+  const old = [...box.querySelectorAll('input')].map((i) => i.value);
+  let h = '<div class="row">';
+  for (let i = 0; i < n; i++) h += '<div><label for="track' + i + '">' + (n > 1 ? 'Rastreio da encomenda ' + (i + 1) + ' (opcional)' : 'Código de rastreio (opcional)') + '</label><input id="track' + i + '" class="trk" type="text" value="' + esc(old[i] || '') + '"></div>';
+  box.innerHTML = h + '</div>';
 }
 async function submitPkg(f) {
   const s = R.sel; if (!s) return;
@@ -272,13 +281,14 @@ async function submitPkg(f) {
     target = { resId: null, bloco: b, unit: u, nome: val('#mn'), tel: val('#ptel') };
   } else target = { resId: s.id, bloco: s.bloco, unit: s.unit, nome: s.nome, tel: s.tel };
   const n = Math.min(9, Math.max(1, parseInt(val('#vol'), 10) || 1));
-  const base = { ...target, carrier: g('carrier') || 'Outros', tipo: g('tipo') || 'Caixa', shelf: g('shelf') || 'A', track: val('#track'), obs: val('#obs') };
+  const base = { ...target, carrier: g('carrier') || 'Outros', tipo: g('tipo') || 'Caixa', shelf: g('shelf') || 'A', obs: val('#obs') };
+  const tracks = [...f.querySelectorAll('.trk')].map((i) => i.value.trim());
   const btn = f.querySelector('button[type=submit]');
   const saved = [];
   await run(async () => {
     for (let i = 1; i <= n; i++) {
       const obs = n > 1 ? (base.obs ? base.obs + ' · ' : '') + 'Volume ' + i + '/' + n : base.obs;
-      saved.push(await backend.addPkg({ ...base, obs }));
+      saved.push(await backend.addPkg({ ...base, obs, track: tracks[i - 1] || '' }));
     }
   }, btn);
   if (!saved.length) return;
@@ -561,11 +571,11 @@ document.addEventListener('click', async (e) => {
   if (a === 'closeov') { if (el.classList.contains('overlay') && e.target !== el) return; $('#overlay').innerHTML = ''; return; }
   if (a === 'tab') { setTab(el.getAttribute('data-tab')); return; }
   if (a === 'logout') { await run(() => backend.signOut()); P = null; showLogin(); return; }
-  if (a === 'pick') { const r = S.res.find((x) => x.id === id); if (r) { R.sel = r; R.lastIds = []; R.prevSel = null; viewRegistrar(); const t = $('#track'); if (t) t.focus(); } return; }
+  if (a === 'pick') { const r = S.res.find((x) => x.id === id); if (r) { R.sel = r; R.lastIds = []; R.prevSel = null; viewRegistrar(); const t = $('#track0'); if (t) t.focus(); } return; }
   if (a === 'pickmanual') { R.sel = { manual: true }; R.lastIds = []; R.prevSel = null; viewRegistrar(); const m = $('#mb'); if (m) m.focus(); return; }
   if (a === 'unpick') { R.sel = null; viewRegistrar(); return; }
   if (a === 'newpkg') { R.lastIds = []; R.sel = null; R.prevSel = null; R.q = ''; viewRegistrar(); return; }
-  if (a === 'again') { R.sel = R.prevSel; R.lastIds = []; viewRegistrar(); const t = $('#track'); if (t) t.focus(); return; }
+  if (a === 'again') { R.sel = R.prevSel; R.lastIds = []; viewRegistrar(); const t = $('#track0'); if (t) t.focus(); return; }
   if (a === 'wa') {
     const ids = idsOf(el), who = el.getAttribute('data-who') || 'o morador';
     setTimeout(() => openConfirmAviso(ids, who), 600); // o link abre o WhatsApp; a confirmação espera aqui
@@ -614,6 +624,7 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('input', (e) => {
   const t = e.target;
   if (t.id === 'q') { R.q = t.value; drawMatches(); }
+  else if (t.id === 'vol') drawTracks();
   else if (t.id === 'pq') { PF.q = t.value; drawPend(); }
   else if (t.id === 'hq') { HF.q = t.value; drawHist(); }
   else if (t.id === 'mq') { MF.q = t.value; MF.confirm = null; drawMor(); }
