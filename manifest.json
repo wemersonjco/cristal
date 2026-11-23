@@ -1,6 +1,6 @@
 {
-  "name": "Encomendas da Portaria",
-  "short_name": "Encomendas",
+  "name": "Portaria Fácil",
+  "short_name": "Portaria Fácil",
   "description": "Controle de recebimento e entrega de encomendas da portaria",
   "start_url": "./index.html",
   "scope": "./",

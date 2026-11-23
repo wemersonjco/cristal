@@ -21,7 +21,7 @@ function newCode(pkgs) {
   return c;
 }
 const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
-const defaultCfg = () => ({ condo: 'Condomínio', tpl: DEFAULT_TPL, blocos: DEFAULT_BLOCOS.slice() });
+const defaultCfg = () => ({ condo: 'Residencial Cristal', tpl: DEFAULT_TPL, blocos: DEFAULT_BLOCOS.slice() });
 
 /* ------------------------------------------------------------------ */
 /* Backend local (demonstração)                                        */
@@ -76,7 +76,7 @@ function seedData() {
   const multi = res.find((x) => x.bloco === 'A1' && x.unit === '13') || res[0];
   [3, 26, 52].forEach((h) => mk(h, false, multi));
   for (let i = 0; i < 45; i++) mk(8 + Math.floor(r() * 680), true);
-  return { demo: true, cfg: { condo: 'Edifício Exemplo', tpl: DEFAULT_TPL, blocos: DEFAULT_BLOCOS.slice() }, res, pkgs };
+  return { demo: true, cfg: { condo: 'Residencial Cristal', tpl: DEFAULT_TPL, blocos: DEFAULT_BLOCOS.slice() }, res, pkgs };
 }
 
 const LKEY = 'portaria-encomendas-v2';
@@ -265,7 +265,7 @@ const remote = (() => {
       return {
         demo: false,
         cfg: {
-          condo: (c.data && c.data.condominio) || 'Condomínio',
+          condo: (c.data && c.data.condominio) || 'Residencial Cristal',
           tpl: (c.data && c.data.modelo_aviso) || DEFAULT_TPL,
           blocos: (c.data && c.data.blocos && c.data.blocos.length ? c.data.blocos : DEFAULT_BLOCOS).slice(),
         },
